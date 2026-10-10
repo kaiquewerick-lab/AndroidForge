@@ -277,103 +277,15 @@ def apply_fixes(detect: dict, fixes: list[dict], android_sdk_root: str) -> list[
     return applied
 
 
+
 def _inject_repositories(root: Path, applied: list[str], is_flutter: bool) -> None:
-    """Inject JitPack / Google / mavenCentral into the project's gradle files
-    if not already declared. Non-destructive: only adds, never removes.
-    """
-    # Candidates: for Flutter, the relevant files are under android/;
-    # for plain Gradle, they're at the root.
-    candidates: list[Path] = []
-    if is_flutter:
-        candidates = [
-            root / "android" / "build.gradle",
-            root / "android" / "build.gradle.kts",
-            root / "android" / "settings.gradle",
-            root / "android" / "settings.gradle.kts",
-        ]
-    candidates += [
-        root / "build.gradle",
-        root / "build.gradle.kts",
-        root / "settings.gradle",
-        root / "settings.gradle.kts",
-    ]
+    """Leave repository configuration to the Android project's own Gradle files.
 
-    REPO_LINES_KTS = [
-        'maven { url = uri("https://maven.google.com") }',
-        'mavenCentral()',
-        'maven { url = uri("https://plugins.gradle.org/m2") }',
-        'maven { url = uri("https://jitpack.io") }',
-    ]
-    REPO_LINES_GROOVY = [
-        'maven { url \'https://maven.google.com\' }',
-        'mavenCentral()',
-        'maven { url \'https://plugins.gradle.org/m2\' }',
-        'maven { url \'https://jitpack.io\' }',
-    ]
-
-    for grad in candidates:
-        if not grad.exists():
-            continue
-        content = grad.read_text(encoding="utf-8", errors="replace")
-        # Skip if all repos are already declared anywhere in the file.
-        already_has = (
-            "jitpack.io" in content
-            and "maven.google.com" in content
-            and "mavenCentral()" in content
-        )
-        if already_has:
-            continue
-        # Try to find a `repositories { ... }` block and append our repos
-        # just before its closing brace.
-        is_kts = grad.name.endswith(".kts")
-        repo_lines = REPO_LINES_KTS if is_kts else REPO_LINES_GROOVY
-        # Strategy 1: find a top-level `repositories {` block and inject.
-        new_content = content
-        injected = False
-        # Find every `repositories {` occurrence (case-insensire.IGNORECASE))):
-        for m in reversed(list(re.finditer(r"repositories\s*\{", content, re.IGNORECASE))):
-            # Find the matching closing brace by counting.
-            start = m.end()
-            depth = 1
-            i = start
-            while i < len(content) and depth > 0:
-                ch = content[i]
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                i += 1
-            if depth == 0:
-                # i-1 is the index of the closing brace.
-                close_idx = i - 1
-                # Check which repos are missing from this block.
-                block_content = content[start:close_idx]
-                missing = []
-                for line, marker in zip(repo_lines, ["maven.google.com", "mavenCentral()", "plugins.gradle.org", "jitpack.io"]):
-                    if marker not in block_content:
-                        missing.append(line)
-                if not missing:
-                    continue
-                inject_text = "\n        // AndroidForge: ensure common public Maven repos\n        " + "\n        ".join(missing) + "\n"
-                # Insert just before the closing brace.
-                new_content = new_content[:close_idx] + inject_text + new_content[close_idx:]
-                injected = True
-        if not injected:
-            # Strategy 2: append a top-level allprojects block.
-            # (works for old Gradle versions, ignored by new ones with
-            # FAIL_ON_PROJECT_REPOS but we tried strategy 1 first.)
-            block = "\n\n// AndroidForge: ensure common public Maven repos\nallprojects {\n    repositories {\n"
-            for line in repo_lines:
-                block += "        " + line + "\n"
-            block += "    }\n}\n"
-            new_content = content + block
-            injected = True
-        if injected and new_content != content:
-            grad.write_text(new_content)
-            applied.append(f"Injected JitPack/Google/mavenCentral into {grad.relative_to(root) if grad.is_relative_to(root) else grad}")
-
-
-def main() -> int:
+        Avoid injecting project repositories when settings.gradle.kts uses
+            FAIL_ON_PROJECT_REPOS, which causes Gradle configuration to fail.
+                """
+                    return
+                    
     parser = argparse.ArgumentParser(description="AndroidForge toolchain setup")
     parser.add_argument("--root", required=True, help="Project root path")
     parser.add_argument("--detect", required=True, help="Detection JSON (string or file path)")
