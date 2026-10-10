@@ -330,8 +330,8 @@ def _inject_repositories(root: Path, applied: list[str], is_flutter: bool) -> No
         # Strategy 1: find a top-level `repositories {` block and inject.
         new_content = content
         injected = False
-        # Find every `repositories {` occurrence (case-insensitive).
-        for m in reversed(list(re.finditer(r"repositories\s*\{", content, re.IGNORECASE))):}")))
+        # Find every `repositories {` occurrence (case-insensire.IGNORECASE))):
+            for m in reversed(list(re.finditer(r"repositories\s*\{", content, re.IGNORECASE))):
             # Find the matching closing brace by counting.
             start = m.end()
             depth = 1
