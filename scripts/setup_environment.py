@@ -278,15 +278,14 @@ def apply_fixes(detect: dict, fixes: list[dict], android_sdk_root: str) -> list[
 
 
 
-def _inject_repositories(root: Path, applied: list[str], is_flutter: bool) -> None:
-    """Leave repository configuration to the Android project's own Gradle files.
 
-        Avoid injecting project repositories when settings.gradle.kts uses
-            FAIL_ON_PROJECT_REPOS, which causes Gradle configuration to fail.
-                """
-                    return
-                    
-    parser = argparse.ArgumentParser(description="AndroidForge toolchain setup")
+def _inject_repositories(root: Path, applied: list[str], is_flutter: bool) -> None:
+    """Avoid injecting repositories into Gradle project files."""
+        return
+        
+        
+        def main() -> int:
+        (description="AndroidForge toolchain setup")
     parser.add_argument("--root", required=True, help="Project root path")
     parser.add_argument("--detect", required=True, help="Detection JSON (string or file path)")
     parser.add_argument("--rules", default=None, help="Path to toolchain-rules.yaml (default: <repo>/config/...)")
